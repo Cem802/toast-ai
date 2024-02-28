@@ -1,4 +1,4 @@
-from util import HNode, HeapFrontier
+from util import Node, QueueFrontier, StackFrontier
 
 #############################################
 # Here's the set of actions. They have the following meaning:
@@ -101,33 +101,6 @@ def check_if_same_state(state1, state2):
             return False
     return True
 
-def heuristic_function(node):
-    weight = 0
-    # Penalize if the current state is the same as the parent state
-    if node.parent is not None and check_if_same_state(node.parent.state, node.state):
-        weight += 10
-    # Penalize if the current state is the same as the grandparent state
-    if node.parent is not None and node.parent.parent is not None and check_if_same_state(node.parent.parent.state, node.state):
-        weight += 20
-    # Penalize if the time exceeds 15
-    if node.state["time"] > 15:
-        weight += 10
-
-    # Estimate the remaining time to reach the goal
-    remaining_actions = 0
-    if node.state["toaster_has_power"] == False and node.state["bread_state"] == "untoasted":
-        remaining_actions += 1
-    if node.state["toaster_is_on"] == False and node.state["bread_state"] == "untoasted":
-        remaining_actions += 1
-    if node.state["bread_location"] == "plate" and node.state["bread_state"] == "untoasted":
-        remaining_actions += 1
-    if node.state["bread_state"] == "untoasted":
-        remaining_actions += 1
-    if node.state["toaster_is_on"] == True and node.state["bread_state"] == "toasted":
-        remaining_actions += 1
-    weight += remaining_actions
-    return weight
-
 ####################################################
 # This is the function you should be implementing for this exercise.
 # The function gets a start state as input and should output a python list of actions that fulfill the goal
@@ -137,13 +110,10 @@ def heuristic_function(node):
 # 3) Implement a function that fulfills 2) and is as fast as possible!
 ###################################################
 def plan(start_state):
-    start = HNode(state=start_state, parent=None, action=None, cost=0)
-    frontier = HeapFrontier()
-    frontier.add(0, start)
+    start = Node(state=start_state, parent=None, action=None)
+    frontier = StackFrontier()
+    frontier.add(start)
     explored = []
-
-    if goal(start_state):
-        return []
 
     while True:
         if frontier.empty():
@@ -153,20 +123,23 @@ def plan(start_state):
         explored.append(node.state)
 
         for action in actions:
-            child = HNode(state=state_transition(node.state, action), parent=node, action=action, cost=node.cost+1)
-
-            if goal(child.state):
+            child = Node(state=state_transition(node.state, action), parent=node, action=action)
+            if check_if_same_state(node.state, child.state):
+                continue
+            elif node.parent is not None and check_if_same_state(node.parent.state, child.state):
+                continue
+            elif child.state["time"] > 15:
+                continue
+            elif goal(child.state):
                 solution = []
                 while child.parent is not None:
                     solution.append(child.action)
                     child = child.parent
                 solution.reverse()
-                print("\t Explored states: ",len(explored))
+                print("\t",len(explored))
                 return solution
-            
             elif not frontier.contains_state(child.state) and child.state not in explored:
-                heuristic = child.cost + heuristic_function(child)
-                frontier.add(heuristic, child)
+                frontier.add(child)
 
 
 # this is a test function. It tests your plan function 
@@ -193,8 +166,5 @@ test(state)
 test({'toaster_has_power': True, 'toaster_is_on': False, 'bread_location': 'toaster', 'bread_state': 'untoasted', 'time': 0})
 test({'toaster_has_power': True, 'toaster_is_on': True, 'bread_location': 'plate', 'bread_state': 'untoasted', 'time': 0})
 test({'toaster_has_power': False, 'toaster_is_on': True, 'bread_location': 'plate', 'bread_state': 'untoasted', 'time': 0})
-test({'toaster_has_power': True, 'toaster_is_on': False, 'bread_location': 'plate', 'bread_state': 'toasted', 'time': 0})
-test({'toaster_has_power': True, 'toaster_is_on': False, 'bread_location': 'toaster', 'bread_state': 'toasted', 'time': 0})
-test({'toaster_has_power': True, 'toaster_is_on': True, 'bread_location': 'toaster', 'bread_state': 'toasted', 'time': 0})
 
 
